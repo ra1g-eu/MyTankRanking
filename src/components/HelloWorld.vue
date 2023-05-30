@@ -1,58 +1,126 @@
 <template>
-  <div class="hello">
-    <h1>{{ msg }}</h1>
-    <p>
-      For a guide and recipes on how to configure / customize this project,<br>
-      check out the
-      <a href="https://cli.vuejs.org" target="_blank" rel="noopener">vue-cli documentation</a>.
-    </p>
-    <h3>Installed CLI Plugins</h3>
-    <ul>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-babel" target="_blank" rel="noopener">babel</a></li>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-eslint" target="_blank" rel="noopener">eslint</a></li>
-    </ul>
-    <h3>Essential Links</h3>
-    <ul>
-      <li><a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a></li>
-      <li><a href="https://forum.vuejs.org" target="_blank" rel="noopener">Forum</a></li>
-      <li><a href="https://chat.vuejs.org" target="_blank" rel="noopener">Community Chat</a></li>
-      <li><a href="https://twitter.com/vuejs" target="_blank" rel="noopener">Twitter</a></li>
-      <li><a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a></li>
-    </ul>
-    <h3>Ecosystem</h3>
-    <ul>
-      <li><a href="https://router.vuejs.org" target="_blank" rel="noopener">vue-router</a></li>
-      <li><a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a></li>
-      <li><a href="https://github.com/vuejs/vue-devtools#vue-devtools" target="_blank" rel="noopener">vue-devtools</a></li>
-      <li><a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener">vue-loader</a></li>
-      <li><a href="https://github.com/vuejs/awesome-vue" target="_blank" rel="noopener">awesome-vue</a></li>
-    </ul>
+  <div class="row gx-4 gy-1 shadow-sm">
+    <h2>Editor</h2>
+    <div class="col-4">
+    <button @click="loginOpenIdWG" class="btn btn-danger">Wargaming LOGIN</button>
+    <div v-if="playerInfo.length > 0">
+      <ul v-for="(player, index) in playerInfo" :key="index">
+        <li>Player Name: {{ player.playerName }}</li>
+      <li>
+        Account Id: {{ player.accId }}
+      </li>
+        <li>
+          Expiration Date: {{new Date(player.expiresAt * 1e3).toUTCString()}}
+        </li>
+      </ul>
+      <button class="btn btn-primary" @click="logOutOpenIdWG">Log out</button>
+    </div>
+      <div v-else-if="requestStatus.length > 0">
+        <ul v-for="(status, index) in requestStatus" :key="index">
+          <li>Login status: {{ status.status }}</li>
+          <li>
+            Message: {{ status.message }}
+          </li>
+          <li>
+            Error code: {{status.code}}
+          </li>
+        </ul>
+      </div>
+    </div>
+    <router-link :to="{name: 'helloworld', params: {id: 2}}" class="link-danger">dva</router-link>
+    <router-link :to="{name: 'helloworld', params: {id: 3}}" class="link-danger">tri</router-link>
+    <button @click="getArticle(2)" class="btn btn-danger">Dva</button>
+    <button class="btn btn-danger" @click="saveMarkdown">save markdown to db</button>
+    <div>
+      <textarea :value="source" @input="update" style="width: 100%"></textarea>
+      <Markdown ref="mkdn" :source="source"/>
+    </div>
   </div>
 </template>
 
 <script>
+import Markdown from 'vue3-markdown-it';
+import 'highlight.js/styles/sunburst.css';
+
 export default {
   name: 'HelloWorld',
-  props: {
-    msg: String
+  components: {
+    Markdown
+  },
+  data() {
+    return {
+      source: '# Hello World!',
+      playerInfo: [],
+      requestStatus: []
+    }
+  },
+  created() {
+    if (typeof this.$route.params.id === "string") {
+      this.getArticle();
+    }
+  },
+  mounted() {
+    //this.getArticle();
+    this.getPlayerInfo();
+  },
+  methods: {
+    update(e) {
+      this.source = e.target.value;
+    },
+    async loginOpenIdWG() {
+      try {
+        window.location.href=this.$apiUrl +'wg/auth/login';
+      } catch (err) {
+        console.log(err);
+      }
+    },
+    async logOutOpenIdWG() {
+      try {
+        window.location.href=this.$apiUrl +'wg/auth/logout/'+this.playerInfo.accessToken;
+      } catch (err) {
+        console.log(err);
+      }
+    },
+    getPlayerInfo(){
+      this.playerInfo = [] ;
+      this.requestStatus = [];
+      if (this.$route.query.status === 'ok' && this.$route.query.access_token != null) {
+        this.playerInfo = [{
+          playerName: this.$route.query.nickname,
+          accId: this.$route.query.account_id,
+          expiresAt: this.$route.query.expires_at,
+          accessToken: this.$route.query.access_token
+        }];
+      } else if(this.$route.query.status === 'error'){
+        this.requestStatus = [{status: this.$route.query.status, message: this.$route.query.message, code: this.$route.query.code}]
+      }
+    },
+    async getArticle(id) {
+      try {
+        await this.$axios.get(this.$apiUrl + `getArticle/${id == null ? this.$route.params.id : id}`).then(response => {
+          if (response.data.status == 'success') {
+            this.source = response.data.message[0].article
+          } else {
+            console.log(response.data.message);
+          }
+        });
+      } catch (err) {
+        console.log(err);
+      }
+    },
+    async saveMarkdown() {
+      try {
+        await this.$axios.post(this.$apiUrl + "saveArticle", {
+          article_core: this.source,
+        });
+      } catch (err) {
+        console.log(err);
+      }
+    }
   }
-}
+};
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-h3 {
-  margin: 40px 0 0;
-}
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-li {
-  display: inline-block;
-  margin: 0 10px;
-}
-a {
-  color: #42b983;
-}
 </style>

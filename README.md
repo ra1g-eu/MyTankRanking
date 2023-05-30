@@ -1,4 +1,10 @@
-# client
+# MyTankRanking
+
+Features:
+- user account system
+- rank every tank in game (as of May 2022)
+- share your rankings
+- see overall rankings from all users
 
 ## Project setup
 ```
